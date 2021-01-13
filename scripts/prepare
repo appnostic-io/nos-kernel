@@ -1,0 +1,34 @@
+#!/bin/bash
+set -e
+
+source $(dirname $0)/version
+cd $(dirname $0)/..
+
+mkdir -p ${DOWNLOADS}/kernel ${DOWNLOADS}/firmware
+
+# kernel
+mkdir -p build/kernel
+dpkg-deb -x ${DOWNLOADS}/ubuntu-kernel.deb ${DOWNLOADS}/kernel
+rsync -a ${DOWNLOADS}/kernel/usr/src/linux-source-*/debian* ./build/kernel/
+tar xf ${DOWNLOADS}/kernel/usr/src/linux-source-*/linux-source*.tar.bz2 -C ./build/kernel/. --strip-components=1
+
+## firmware
+#mkdir -p build/firmware
+#dpkg-deb -x ${DOWNLOADS}/ubuntu-firmware.deb ${DOWNLOADS}/firmware
+#rsync -a ${DOWNLOADS}/firmware/lib/firmware/* ./build/firmware/
+
+# patches
+PATCHES_DIR=$(pwd)/patches
+pushd build/kernel
+for p in $(find ${PATCHES_DIR} -name "*.patch"); do
+    echo "applying $p"
+    patch -p1 -i $p
+done
+
+# Some nosticOS specifics
+CONFIG="debian.master/config/config.common.ubuntu"
+echo CONFIG_LOCALVERSION="-nos" >>$CONFIG
+
+# TODO: Kernel splash screen (from buildroot)
+
+popd
